@@ -1,0 +1,251 @@
+// ============================================================
+// Claire Invite Studio — Database Schema
+// ORM: Prisma  |  Database: PostgreSQL
+//
+// Run `npx prisma migrate dev` after setting DATABASE_URL in .env
+// to create these tables in your actual Postgres database.
+// ============================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------- ENUMS ----------
+
+enum Role {
+  ADMIN
+  COUPLE
+}
+
+enum AttendanceStatus {
+  PENDING
+  ATTENDING
+  DECLINED
+}
+
+enum MealChoice {
+  BEEF
+  CHICKEN
+  VEGETARIAN
+  VEGAN
+}
+
+enum SaladChoice {
+  GARDEN
+  CAESAR
+  NONE
+}
+
+enum DrinkChoice {
+  RED_WINE
+  WHITE_WINE
+  COCKTAIL
+  NON_ALCOHOLIC
+}
+
+enum GiftChoice {
+  CASH
+  BANK_TRANSFER
+  MOBILE_MONEY
+  BOXED_GIFT
+  REGISTRY
+}
+
+// ---------- CORE USER TABLE ----------
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  name         String
+  role         Role     @default(COUPLE)
+  createdAt    DateTime @default(now())
+
+  wedding Wedding? @relation("WeddingOwner")
+}
+
+// ---------- WEDDING ----------
+
+model Wedding {
+  id           String    @id @default(cuid())
+  slug         String    @unique
+  partner1Name String
+  partner2Name String
+  weddingDate  DateTime
+  venueName    String
+  venueAddress String
+  mapUrl       String?
+  storyText    String?   @db.Text
+  dressCode    String?
+  monogramLine String?
+  primaryColor String    @default("#1F3A2E")
+  accentColor  String    @default("#C6A15B")
+  bgMusicUrl   String?
+  contactPhone String?
+  contactEmail String?
+  rsvpDeadline DateTime?
+  published    Boolean   @default(false)
+
+  ownerId String @unique
+  owner   User   @relation("WeddingOwner", fields: [ownerId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  images        WeddingImage[]
+  scheduleItems ScheduleItem[]
+  rsvps         Rsvp[]
+  messages      GuestMessage[]
+  questions     GuestQuestion[]
+  payments      Payment[]
+  orders        Order[]
+}
+
+// ---------- PHOTO / VIDEO GALLERY ----------
+
+model WeddingImage {
+  id        String   @id @default(cuid())
+  weddingId String
+  wedding   Wedding  @relation(fields: [weddingId], references: [id], onDelete: Cascade)
+  url       String
+  type      String   @default("photo")
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+}
+
+// ---------- PROGRAM / TIMELINE ----------
+
+model ScheduleItem {
+  id        String  @id @default(cuid())
+  weddingId String
+  wedding   Wedding @relation(fields: [weddingId], references: [id], onDelete: Cascade)
+  time      String
+  title     String
+  location  String?
+  sortOrder Int     @default(0)
+}
+
+// ---------- RSVP ----------
+
+model Rsvp {
+  id        String  @id @default(cuid())
+  weddingId String
+  wedding   Wedding @relation(fields: [weddingId], references: [id], onDelete: Cascade)
+
+  guestName  String
+  guestPhone String?
+  attendance AttendanceStatus @default(PENDING)
+  guestCount Int              @default(0)
+
+  meal  MealChoice?
+  salad SaladChoice?
+  drink DrinkChoice?
+  gift  GiftChoice?
+
+  extraGuests Json?
+
+  dietaryNotes String?
+  message      String? @db.Text
+
+  createdAt DateTime @default(now())
+}
+
+// ---------- GUEST BOOK MESSAGES ----------
+
+model GuestMessage {
+  id        String   @id @default(cuid())
+  weddingId String
+  wedding   Wedding  @relation(fields: [weddingId], references: [id], onDelete: Cascade)
+  fromName  String
+  message   String   @db.Text
+  createdAt DateTime @default(now())
+}
+
+// ---------- GUEST QUESTIONS ----------
+
+model GuestQuestion {
+  id         String    @id @default(cuid())
+  weddingId  String
+  wedding    Wedding   @relation(fields: [weddingId], references: [id], onDelete: Cascade)
+  fromName   String
+  question   String    @db.Text
+  answer     String?   @db.Text
+  answeredBy String?
+  createdAt  DateTime  @default(now())
+  answeredAt DateTime?
+}
+
+// ---------- PAYMENTS ----------
+
+model Payment {
+  id              String   @id @default(cuid())
+  weddingId       String
+  wedding         Wedding  @relation(fields: [weddingId], references: [id], onDelete: Cascade)
+  stripeSessionId String?  @unique
+  amountCents     Int
+  currency        String   @default("usd")
+  status          String   @default("pending")
+  package         String
+  createdAt       DateTime @default(now())
+}
+
+// ---------- CLIENT ORDERS ----------
+
+enum OrderStatus {
+  NEW
+  CONTACTED
+  CONFIRMED
+  PAID
+  IN_DESIGN
+  DELIVERED
+  COMPLETED
+  CANCELLED
+}
+
+model Order {
+  id String @id @default(cuid())
+
+  // Customer information
+  customerName  String
+  customerPhone String
+  customerEmail String?
+
+  // Order information
+  invitation String
+  package    String
+
+  // Celebration information
+  eventDate DateTime?
+  venue     String?
+  guests    Int?
+  message   String?   @db.Text
+
+  // Business workflow
+  status OrderStatus @default(NEW)
+
+  // Payment tracking
+  amountCents      Int?
+  currency         String  @default("UGX")
+  paymentStatus    String  @default("unpaid")
+  paymentReference String?
+
+  // Invitation delivery
+  invitationUrl String?
+  deliveredAt   DateTime?
+
+  // Optional connection to the actual wedding website
+  weddingId String?
+  wedding   Wedding? @relation(fields: [weddingId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status])
+  @@index([customerPhone])
+  @@index([createdAt])
+}

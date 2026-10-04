@@ -1,0 +1,6 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body { font-family: var(--font-garamond), serif; }
+h1, h2, h3 { font-family: var(--font-cormorant), serif; }

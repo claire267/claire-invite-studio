@@ -1,0 +1,284 @@
+export const dynamic = "force-dynamic";
+
+import Link from "next/link";
+import { notFound } from "next/navigation";
+import { prisma } from "@/lib/prisma";
+import OrderControls from "./OrderControls";
+
+export default async function OrderDetailPage({
+  params,
+}: {
+  params: { id: string };
+}) {
+  const order = await prisma.order.findUnique({
+    where: {
+      id: params.id,
+    },
+    include: {
+      wedding: true,
+    },
+  });
+
+  if (!order) {
+    notFound();
+  }
+
+  const whatsappNumber =
+    order.customerPhone.replace(/\D/g, "");
+
+  return (
+    <div className="max-w-5xl">
+
+      {/* HEADER */}
+      <div className="mb-8 flex items-center justify-between">
+        <div>
+          <p className="text-sm uppercase tracking-[0.25em] text-[#B08D57]">
+            Order Details
+          </p>
+
+          <h1 className="mt-2 font-serif text-4xl text-[#174A3B]">
+            {order.customerName}
+          </h1>
+
+          <p className="mt-2 text-sm text-gray-500">
+            Order received{" "}
+            {new Date(
+              order.createdAt
+            ).toLocaleString()}
+          </p>
+        </div>
+
+        <Link
+          href="/admin/orders"
+          className="rounded-full border border-[#D9D2C6] px-5 py-2.5 text-sm hover:bg-white"
+        >
+          ← Orders
+        </Link>
+      </div>
+
+      {/* INFORMATION */}
+      <div className="grid gap-6 md:grid-cols-2">
+
+        <InfoCard title="Customer">
+          <Info
+            label="Name"
+            value={order.customerName}
+          />
+
+          <Info
+            label="Phone"
+            value={order.customerPhone}
+          />
+
+          <Info
+            label="Email"
+            value={order.customerEmail || "—"}
+          />
+        </InfoCard>
+
+        <InfoCard title="Invitation">
+          <Info
+            label="Design"
+            value={order.invitation}
+          />
+
+          <Info
+            label="Package"
+            value={order.package}
+          />
+        </InfoCard>
+
+        <InfoCard title="Celebration">
+          <Info
+            label="Event Date"
+            value={
+              order.eventDate
+                ? new Date(
+                    order.eventDate
+                  ).toLocaleDateString()
+                : "—"
+            }
+          />
+
+          <Info
+            label="Venue"
+            value={order.venue || "—"}
+          />
+
+          <Info
+            label="Guests"
+            value={
+              order.guests !== null
+                ? String(order.guests)
+                : "—"
+            }
+          />
+        </InfoCard>
+
+        {/* MANAGEMENT */}
+        <InfoCard title="Order Management">
+
+          <OrderControls
+            orderId={order.id}
+            initialStatus={order.status}
+            initialPaymentStatus={
+              order.paymentStatus
+            }
+            customerName={order.customerName}
+            customerEmail={
+              order.customerEmail
+            }
+          />
+
+          <Info
+            label="Order ID"
+            value={order.id}
+          />
+        </InfoCard>
+      </div>
+
+      {/* CONNECTED WEDDING */}
+      <div className="mt-6 rounded-2xl bg-white p-7 shadow-sm">
+
+        <h2 className="font-serif text-2xl text-[#174A3B]">
+          Wedding Website
+        </h2>
+
+        {order.wedding ? (
+          <div className="mt-5 rounded-xl bg-[#FDFBF7] p-5">
+
+            <p className="text-sm text-gray-500">
+              Connected wedding
+            </p>
+
+            <p className="mt-1 font-serif text-xl text-[#174A3B]">
+              {order.wedding.partner1Name}{" "}
+              &amp;{" "}
+              {order.wedding.partner2Name}
+            </p>
+
+            <p className="mt-2 text-sm text-gray-500">
+              /w/{order.wedding.slug}
+            </p>
+
+            <div className="mt-4 flex gap-3">
+
+              <Link
+                href={`/admin/weddings/${order.wedding.id}`}
+                className="rounded-full bg-[#174A3B] px-5 py-2.5 text-sm text-white"
+              >
+                Edit Wedding
+              </Link>
+
+              <Link
+                href={`/w/${order.wedding.slug}`}
+                target="_blank"
+                className="rounded-full border border-[#D9D2C6] px-5 py-2.5 text-sm"
+              >
+                View Invitation
+              </Link>
+
+            </div>
+          </div>
+        ) : (
+          <div className="mt-5 rounded-xl bg-[#FDFBF7] p-5">
+
+            <p className="text-sm text-gray-600">
+              No wedding website has been created
+              for this order yet.
+            </p>
+
+            <Link
+              href={`/admin/weddings/new?orderId=${order.id}`}
+              className="mt-4 inline-flex rounded-full bg-[#174A3B] px-5 py-3 text-sm text-white"
+            >
+              + Create Wedding From Order
+            </Link>
+
+          </div>
+        )}
+      </div>
+
+      {/* MESSAGE */}
+      <div className="mt-6 rounded-2xl bg-white p-7 shadow-sm">
+
+        <h2 className="font-serif text-2xl text-[#174A3B]">
+          Additional Details
+        </h2>
+
+        <p className="mt-4 whitespace-pre-wrap text-sm leading-7 text-gray-600">
+          {order.message ||
+            "No additional details provided."}
+        </p>
+
+      </div>
+
+      {/* WHATSAPP */}
+      <div className="mt-8 rounded-2xl border border-[#E5DED2] bg-[#FDFBF7] p-7">
+
+        <h2 className="font-serif text-2xl text-[#174A3B]">
+          Customer Contact
+        </h2>
+
+        <p className="mt-2 text-sm text-gray-600">
+          Contact this customer on WhatsApp to
+          confirm invitation details and payment.
+        </p>
+
+        <a
+          href={`https://wa.me/${whatsappNumber}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="mt-5 inline-flex rounded-full bg-[#174A3B] px-6 py-3 text-sm font-medium text-white hover:bg-[#B08D57]"
+        >
+          Open Customer WhatsApp
+        </a>
+
+      </div>
+    </div>
+  );
+}
+
+function InfoCard({
+  title,
+  children,
+}: {
+  title: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="rounded-2xl bg-white p-7 shadow-sm">
+
+      <h2 className="mb-5 font-serif text-2xl text-[#174A3B]">
+        {title}
+      </h2>
+
+      <div className="space-y-4">
+        {children}
+      </div>
+
+    </div>
+  );
+}
+
+function Info({
+  label,
+  value,
+}: {
+  label: string;
+  value: string;
+}) {
+  return (
+    <div className="flex justify-between gap-6 border-b border-gray-100 pb-3">
+
+      <span className="text-xs uppercase tracking-wide text-gray-400">
+        {label}
+      </span>
+
+      <span className="text-right text-sm font-medium text-gray-700">
+        {value}
+      </span>
+
+    </div>
+  );
+}
